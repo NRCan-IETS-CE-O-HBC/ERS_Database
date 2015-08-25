@@ -2,7 +2,7 @@
  
  
 # Source file for raw D-E dump. 
-my $file_1 = "evaluations_d_e.csv";
+my $file_1 = "head-raw.csv";
 
 
 # File to contain D records
@@ -39,7 +39,8 @@ while ( my $line = <FILEIN1> ){
 
   # Escape unnecssary spaces. 
   $line =~ s/([^\"]),([^\"])/$1_$2/g;
-
+  # Convert spaces to '^'
+  $line =~ s/\n//g;
   
   my $colindex = 0; 
 
@@ -119,7 +120,8 @@ while ( my $line = <FILEIN1> ){
   #print ">>> $line_no $eval_col_index  $columns[0]  $columns[$eval_col_index] \n";  
   
   # Hader row: 
-  if ( $columns[$eval_col_index] =~ /EVAL_TYP/ ) {  $output_D .= $output; $output_E .= $output;  }                                  
+  if ( $columns[$eval_col_index] =~ /EVAL_TYP/ ) {  $output_D .= $output; 
+                                                    $output_E .= $output;  }                                  
   if ( $columns[$eval_col_index] =~ /D/ )        {  $output_D .= $output; }
   if ( $columns[$eval_col_index] =~ /\"E"/ )     {  $output_E .= $output; }
   
@@ -133,8 +135,20 @@ while ( my $line = <FILEIN1> ){
   
 }
 
+     print "Dumping $line_no_buffer lines ($line_no) \n"; 
+     
+     
+     print FILEOUT_D "$output_D";
+     print FILEOUT_E "$output_E";
+     
+     
+     
+     $output_D = ""; 
+     $output_E = ""; 
+
+
 foreach my $column ( @keep_col_index ){
- print "$column | "; 
+ #print "$column | "; 
 }
 
 
