@@ -2,7 +2,7 @@
  
  
 # Source file for raw D-E dump. 
-my $file_1 = "head-raw.csv";
+my $file_1 = "evaluations_d_e.csv";
 
 
 # File to contain D records
@@ -41,7 +41,8 @@ while ( my $line = <FILEIN1> ){
   $line =~ s/([^\"]),([^\"])/$1_$2/g;
   # Convert spaces to '^'
   $line =~ s/\n//g;
-  
+  $line =~ s/\r//g;
+  $line =~ s/ /^/g;
   my $colindex = 0; 
 
   # Take the line and split it into columns

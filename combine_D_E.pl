@@ -6,7 +6,7 @@ use IO::Handle qw( );  # For flush
  
 my $file_D = "split-results_D_audit.txt";
 my $file_E = "split-results_E_audit.txt";
-my $file_out = "D_E_combined_part_AWS-full.txt";
+my $file_out = "D_E_combined_2015-09-01-full.txt";
 my @file_E;
 my @file_D;
 
@@ -87,26 +87,25 @@ foreach my $line_D ( @file_D ){
   if ($HeaderRead == 0) {
   
     foreach my $column (@columns) {
-	
-	  if ( $column =~ /EVAL_TYP/)     { push @keep_col_index, $colindex; }
-      if ( $column =~ /HOUSE_ID/)     { push @keep_col_index, $colindex; 
-	                                      $house_ID_index =   $colindex; }
-	  if ( $column =~ /PROVINCE/)     { push @keep_col_index, $colindex; }	
-	  if ( $column =~ /DECADEBUILT/)  { push @keep_col_index, $colindex; }
- 	  if ( $column =~ /FLOORAREA/)    { push @keep_col_index, $colindex; }
-	  if ( $column =~ /FOOTPRINT/)    { push @keep_col_index, $colindex; }
-	  if ( $column =~ /TYPEOFHOUSE/)  { push @keep_col_index, $colindex; }	
-	  if ( $column =~ /STOREYS/)      { push @keep_col_index, $colindex; }
-	  if ( $column =~ /\"FURSSEFF/)   { push @keep_col_index, $colindex; }
-	  if ( $column =~ /\"FURNACEFUEL/){ push @keep_col_index, $colindex; }	 
-	  if ( $column =~ /\"PDHWEF/)     { push @keep_col_index, $colindex; }	
-	  if ( $column =~ /\"PDHWFUEL/)   { push @keep_col_index, $colindex; }	
-      if ( $column =~ /\"CEILINS/)    { push @keep_col_index, $colindex; }	 
-	  if ( $column =~ /\"FNDWALLINS/) { push @keep_col_index, $colindex; }	
-	  if ( $column =~ /\"MAINWALLINS/){ push @keep_col_index, $colindex; }	
- 	  if ( $column =~ /\"WINDOWCODE/) { push @keep_col_index, $colindex; }	
-      if ( $column =~ /\"AIR50P/)     { push @keep_col_index, $colindex; }  
-      if ( $column =~ /EINCENTIVE/)   { push @keep_col_index, $colindex; }  	 	  
+	  push @keep_col_index, $colindex;
+	  #if ( $column =~ /EVAL_TYP/)     { push @keep_col_index, $colindex; }
+    if ( $column =~ /HOUSE_ID/)     { $house_ID_index =   $colindex; }
+	  #if ( $column =~ /PROVINCE/)     { push @keep_col_index, $colindex; }	
+	  #if ( $column =~ /DECADEBUILT/)  { push @keep_col_index, $colindex; }
+ 	  #if ( $column =~ /FLOORAREA/)    { push @keep_col_index, $colindex; }
+	  #if ( $column =~ /FOOTPRINT/)    { push @keep_col_index, $colindex; }
+	  #if ( $column =~ /TYPEOFHOUSE/)  { push @keep_col_index, $colindex; }	
+	  #if ( $column =~ /STOREYS/)      { push @keep_col_index, $colindex; }
+	  #if ( $column =~ /\"FURSSEFF/)   { push @keep_col_index, $colindex; }
+	  #if ( $column =~ /\"FURNACEFUEL/){ push @keep_col_index, $colindex; }	 
+	  #if ( $column =~ /\"PDHWEF/)     { push @keep_col_index, $colindex; }	
+	  #if ( $column =~ /\"PDHWFUEL/)   { push @keep_col_index, $colindex; }	
+      #if ( $column =~ /\"CEILINS/)    { push @keep_col_index, $colindex; }	 
+	  #if ( $column =~ /\"FNDWALLINS/) { push @keep_col_index, $colindex; }	
+	  #if ( $column =~ /\"MAINWALLINS/){ push @keep_col_index, $colindex; }	
+ 	  #if ( $column =~ /\"WINDOWCODE/) { push @keep_col_index, $colindex; }	
+      #if ( $column =~ /\"AIR50P/)     { push @keep_col_index, $colindex; }  
+      #if ( $column =~ /EINCENTIVE/)   { push @keep_col_index, $colindex; }  	 	  
       $colindex++;
     }
        
@@ -138,6 +137,7 @@ foreach my $line_D ( @file_D ){
     # Now save output. 
     $output = "$line_D,$line_E";
     $output =~ s/\n//g; 
+    $output =~ s/\r//g; 
     print FILEOUT "$output  \n " ;
     
     # Finish progress report 
@@ -150,7 +150,9 @@ foreach my $line_D ( @file_D ){
    
   STDOUT ->flush(); 
   FILEOUT -> flush(); 
-
+ 
+ # debug: use this statement to limit the number tested. 
+ # if ( $MatchCount > 10 ) {die();}
 
 }	
     
