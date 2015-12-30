@@ -1,22 +1,23 @@
 #!/usr/bin/perl
-
+# This script takes two csv files containing D and E audit data, and 
+# identifies matching rows (by house ID  so that the D and E data appear on a single row. 
 
 
 use IO::Handle qw( );  # For flush
  
 my $file_D = "split-results_D_audit.txt";
 my $file_E = "split-results_E_audit.txt";
-my $file_out = "D_E_combined_2015-09-01-full.txt";
+my $file_out = "D_E_combined_2015-12-24-NAIMA.csv";
 my @file_E;
 my @file_D;
 
 
 # Open files 
-
-open (FILEIN_D, $file_D) or die ("could not open $file_D\n");
+# INPUT: 
+open (FILEIN_D, $file_D) or die     ("could not open $file_D\n");
+open (FILEIN_E, $file_E) or die     ("could not open $file_E\n");
+# OUTPUT:    
 open (FILEOUT, ">$file_out") or die ("could not open $file_out\n");
-open (FILEIN_E, $file_E) or die ("could not open $file_E\n");
-   
 
 # Load file D into memory.
 print "Parsing file D... \n"; 
@@ -129,8 +130,8 @@ foreach my $line_D ( @file_D ){
         
     if ( ! $HeaderRead ) {
       # append '-D' and '-E' to header row fields to keep them straight. 
-      $line_D =~ s/\",/-D\",/g; 
-      $line_E =~ s/\",/-E\",/g; 
+      $line_D =~ s/,/-D,/g; 
+      $line_E =~ s/,/-E,/g; 
       $HeaderRead = 1;  
     }
     
