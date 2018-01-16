@@ -35,7 +35,9 @@ debug_vector <- function(myVector=c()){
 
 # Header 
 sayHello <- function(){ 
-  debug_out(c('(ERS-DB-Analysis.R debugging output) \n\n'))
+  string_time <- format(Sys.time(), "%a %b %d %X %Y")
+  debug_out(c('(ERS-DB-Analysis.R debugging output)', string_time,' \n\n'))
+  
   stream_out(c('This is the draft housing stock analysis script. \n \n\n'))
 }
 
@@ -53,17 +55,17 @@ gPathToCEUD = "C:\\Users\\aferguso\\Google Drive\\NRCan work\\NRCan-Optimization
 #gPathToERS  = "C:\\cygwin64\\home\\aferguso\\ERS_Database\\D_E_combined_2016-10-18-forR.csv"
 #gPathToERS  = "C:\\Ruby4HTAP\\ERS_archetype_analysis\\ERS_combined_forR.csv"
 
-gPathToERS   = "C:\\Users\\aferguso\\Google Drive\\NRCan work\\NRCan-Optimization-Results\\EIP-Technology-Forecasting\\CEUD-Data\\D_E_combined_2016-10-18-forR.csv"
+gPathToERS   = "C:\\Users\\aferguso\\Google Drive\\NRCan work\\NRCan-Optimization-Results\\EIP-Technology-Forecasting\\ERS-data\\D_E_combined_2016-10-18-forR.csv"
 
 # General parameters
 
 # Number of archetypes to be defined: 
-gTotalArchetypes = 3000 
+gTotalArchetypes = 3000
 
 # year for model
 gStockYear = 2013
 
-gnERSrows = 500
+gnERSrows = -1 #50000
 
 #==============
 # Start of script. 
@@ -73,6 +75,8 @@ sayHello()
 # CEUD: Parse and pre-process data. 
 # Parse CEUD data from csv file. 
 stream_out(c(" - About to parse CEUD data (",gPathToCEUD, ")..."))
+
+debug_out(c("reading CEUD data from ",gPathToCEUD,"\n\n"))
 
 mydata <- read.csv (file=gPathToCEUD, header=TRUE, sep = ",")
 stream_out (c("  done (",nrow(mydata), " rows) \n\n"))
@@ -104,6 +108,7 @@ if(debug){
 
 
 # List of all 'topologies's, which define the aggregations in CEUD tables
+
 CEUDTopologies =  unique( as.vector(CEUD$Metric))
 
 
@@ -162,14 +167,11 @@ debug_out (c( "CEUD Data for", gStockYear, ":\n"))
 debug_out (c( "  - Total homes      :",CEUDTotalHomes,"\n"))
 debug_out (c( "  - If I generate", gTotalArchetypes, "archetypes, each archetype will represent ", gNumHomesEachArchRepresents," homes\n\n"))
 
-
-
-#=
 # Pre-processing on CEUD data to pull 'Archetype descriptors' 
 
 #=============ERS 
 stream_out (c("\n - About to parse the ERS data at", gPathToERS,"..."))
-
+debug_out (c("reading ERS data from ", gPathToERS,"\n\n"))
 #=ERS data gets parsed here. 
 
 
@@ -754,13 +756,15 @@ myERSdata$CEUDerror[ myERSdata$CEUDdhw == "error"  |
 #myERSdata$CEUDTopProvFormVintageYr = paste()				   
 				   
 
+                   
+                   
+                   
 myERSdata$CEUDTopProvFormVintage <-  paste( myERSdata$CEUDProvince, myERSdata$CEUDForm, myERSdata$CEUDVintage, sep="|")								
 
 
 				   
 stream_out (c("\n - I processed ",nrow(myERSdata)," rows. ", nrow(myERSdata[myERSdata$CEUDerror,]), " contained errors \n\n"))
     
-
 	
 #=============================== PICK the archetypes we need 
 # Archetypes now mapped to CEUD tags. Next steps: 
@@ -787,12 +791,20 @@ arch_run_total <- 0
 
 
 CEUDProvFormVintageYr$Key = paste(CEUDProvFormVintageYr$Province,CEUDProvFormVintageYr$Form, CEUDProvFormVintageYr$Vintage, sep="|" )
-unique(as.character(CEUDProvFormVintageYr$Key))
+
+#unique(as.character(CEUDProvFormVintageYr$Key))
 
 
 #--for each Province in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
 for (ArchProvince in unique(CEUDProvFormYr$Province)){
-  NumOfArch[ArchProvince] <- ((sum(myERSdata$CEUDTopProvFormVintage$NumHomes[CEUDProvFormYr$Province == ArchProvince]))  / CEUDTotalHomes * gTotalArchetypes)
+
+
+  #debug_out(c(ArchProvince))
+  
+  #debug_out(c("-",sum(CEUDProvFormYr$NumHomes[CEUDProvFormYr$Province == ArchProvince]),"\n")) 
+  
+  
+  NumOfArch[ArchProvince] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Province == ArchProvince]))  / CEUDTotalHomes * gTotalArchetypes)
   NumOfArch[ArchProvince] <- round(NumOfArch[ArchProvince])
   
   debug_out(c(" Prov:", ArchProvince, " #: ", NumOfArch[ArchProvince],"\n"))
@@ -800,6 +812,8 @@ for (ArchProvince in unique(CEUDProvFormYr$Province)){
   arch_run_total = arch_run_total + NumOfArch[ArchProvince] 
     
 }  
+
+
 
 debug_out(c("Total archetypes:", arch_run_total,"\n"))
 
