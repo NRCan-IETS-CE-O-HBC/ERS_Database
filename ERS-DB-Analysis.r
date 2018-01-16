@@ -36,7 +36,7 @@ debug_vector <- function(myVector=c()){
 # Header 
 sayHello <- function(){ 
   string_time <- format(Sys.time(), "%a %b %d %X %Y")
-  debug_out(c('(ERS-DB-Analysis.R debugging output)', string_time,' \n\n'))
+  debug_out(c('\n\n(ERS-DB-Analysis.R debugging output)', string_time,' \n\n'))
   
   stream_out(c('This is the draft housing stock analysis script. \n \n\n'))
 }
@@ -49,13 +49,17 @@ debug = 1
 
 # Location of the CEUD data source. Also could be a cmd line arguement
 #gPathToCEUD = "C:\\Users\\jpurdy\\Google Drive\\NRCan-Optimization-Results\\EIP-Technology-Forecasting\\CEUD-Data\\CEUD-translator-txt.csv"
+#gPathToCEUD = "C:\\Users\\aferguso\\Google Drive\\NRCan work\\NRCan-Optimization-Results\\EIP-Technology-Forecasting\\CEUD-Data\\CEUD-translator-txt.csv"
 
-gPathToCEUD = "C:\\Users\\aferguso\\Google Drive\\NRCan work\\NRCan-Optimization-Results\\EIP-Technology-Forecasting\\CEUD-Data\\CEUD-translator-txt.csv"
+gPathToCEUD = "CEUD-translator-txt.csv"
+
 
 #gPathToERS  = "C:\\cygwin64\\home\\aferguso\\ERS_Database\\D_E_combined_2016-10-18-forR.csv"
 #gPathToERS  = "C:\\Ruby4HTAP\\ERS_archetype_analysis\\ERS_combined_forR.csv"
 
-gPathToERS   = "C:\\Users\\aferguso\\Google Drive\\NRCan work\\NRCan-Optimization-Results\\EIP-Technology-Forecasting\\ERS-data\\D_E_combined_2016-10-18-forR.csv"
+#gPathToERS   = "C:\\Users\\aferguso\\Google Drive\\NRCan work\\NRCan-Optimization-Results\\EIP-Technology-Forecasting\\ERS-data\\D_E_combined_2016-10-18-forR.csv"
+
+gPathToERS   = "D_E_combined_2016-10-18-forR.csv"
 
 # General parameters
 
@@ -65,7 +69,7 @@ gTotalArchetypes = 3000
 # year for model
 gStockYear = 2013
 
-gnERSrows = -1 #50000
+gnERSrows = 50000
 
 #==============
 # Start of script. 
@@ -779,7 +783,9 @@ debug_out(c("\n\n =============== Try picking archetypes. ====================\n
 myERSdata$ArchInclude <- FALSE 
 
 gCount <- 0
-NumOfArch <- NULL
+NumOfArchPerProv <- NULL
+NumOfArchPerProvFormVintage <- NULL
+NumOfArchPerProvFormEquipment <- NULL
 ArchProvince <- NULL
 
 
@@ -792,7 +798,15 @@ arch_run_total <- 0
 
 CEUDProvFormVintageYr$Key = paste(CEUDProvFormVintageYr$Province,CEUDProvFormVintageYr$Form, CEUDProvFormVintageYr$Vintage, sep="|" )
 
+CEUDProvFormEquipYr$Key = paste(CEUDProvFormEquipYr$Province,CEUDProvFormEquipYr$Form, CEUDProvFormEquipYr$CEUDSHCode, sep="|" )
+
+
+
 #unique(as.character(CEUDProvFormVintageYr$Key))
+
+
+
+
 
 
 #--for each Province in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
@@ -803,23 +817,65 @@ for (ArchProvince in unique(CEUDProvFormYr$Province)){
   
   #debug_out(c("-",sum(CEUDProvFormYr$NumHomes[CEUDProvFormYr$Province == ArchProvince]),"\n")) 
   
+  # Set size of buckets for each topology, and round them to nearest value
+  NumOfArchPerProv[ArchProvince] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Province == ArchProvince]))  / CEUDTotalHomes * gTotalArchetypes)
+  NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
   
-  NumOfArch[ArchProvince] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Province == ArchProvince]))  / CEUDTotalHomes * gTotalArchetypes)
-  NumOfArch[ArchProvince] <- round(NumOfArch[ArchProvince])
+  debug_out(c(" Prov-:", ArchProvince, " #: ", NumOfArchPerProv[ArchProvince],"\n"))
   
-  debug_out(c(" Prov:", ArchProvince, " #: ", NumOfArch[ArchProvince],"\n"))
   
-  arch_run_total = arch_run_total + NumOfArch[ArchProvince] 
+  arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
     
 }  
 
 
 
-debug_out(c("Total archetypes:", arch_run_total,"\n"))
+#--for each Province|Form|Vintage in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
+for (ArchProvFormVintage in unique(CEUDProvFormVintageYr$Key)){
+
+
+  
+  # Set size of buckets for each topology, and round them to nearest value
+  NumOfArchPerProvFormVintage[ArchProvFormVintage] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Key == ArchProvFormVintage]))  / CEUDTotalHomes * gTotalArchetypes)
+  NumOfArchPerProvFormVintage[ArchProvFormVintage] <- round( NumOfArchPerProvFormVintage[ArchProvFormVintage] )
+  
+  
+  #NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
+  
+  debug_out(c(" ProvFormVintage:", ArchProvFormVintage, " #: ", NumOfArchPerProvFormVintage[ArchProvFormVintage],"\n"))
+  
+  
+  #arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
+    
+}  
+
+debug_out(c("---------------------------------------\n"))
+
+#--for each Province|Form|Equipment in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
+for (ArchProvFormEquip in unique(CEUDProvFormEquipYr$Key)){
+
+
+  
+  # Set size of buckets for each topology, and round them to nearest value
+  NumOfArchPerProvFormEquipment[ArchProvFormEquip] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormEquipYr$Key == ArchProvFormEquip]))  / CEUDTotalHomes * gTotalArchetypes)
+  NumOfArchPerProvFormEquipment[ArchProvFormEquip] <- round( NumOfArchPerProvFormVintage[ArchProvFormEquip] )
+  
+  #NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
+  
+  debug_out(c(" ProvFormEquip:", ArchProvFormEquip, " #: ", NumOfArchPerProvFormEquipment[ArchProvFormEquip],"\n"))
+  
+  
+  #arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
+    
+}  
+
+
+
+
 
 
 #dataframe:   province | number of homes in the set| counter
-ArchetypeDataFrame  <- data.frame(ArchProvince,NumOfArch,gCount)
+ArchetypeDataFrame  <- data.frame(ArchProvince,NumOfArchPerProv,gCount)
 #set ArchProvince from row names
 ArchetypeDataFrame$ArchProvince <- row.names(ArchetypeDataFrame)
 
@@ -849,7 +905,7 @@ for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror  ] )){
 
   #debug_out(c("> ", ID, "PROV:", Prov,"\n"))
   
-  if ( CountOfArchPerProv[Prov] < NumOfArch[Prov] ){
+  if ( CountOfArchPerProv[Prov] < NumOfArchPerProv[Prov] ){
      
 	 CountOfArchPerProv[Prov] <- CountOfArchPerProv[Prov] + 1
 	 myERSdata$ArchInclude[myERSdata$HOUSE_ID.D == ID] <- TRUE 
@@ -867,7 +923,7 @@ arch_run_total <- 0
 for (ArchProvince in unique(CEUDProvFormYr$Province)){
   
   
-  debug_out(c(" Prov:", ArchProvince, " #: ", nrow(mySubData[mySubData$CEUDProvince==ArchProvince,])," / ", NumOfArch[ArchProvince], " \n"))
+  debug_out(c(" Found for Prov:", ArchProvince, " #: ", nrow(mySubData[mySubData$CEUDProvince==ArchProvince,])," / ", NumOfArchPerProv[ArchProvince], " \n"))
   
   arch_run_total <- arch_run_total + nrow(mySubData[mySubData$CEUDProvince==ArchProvince,])
     
