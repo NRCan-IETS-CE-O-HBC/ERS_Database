@@ -128,11 +128,39 @@ if (debug) {
 # Create separate topologies 
 # Get subsets that contain housing stock by aggregations of interest. 
 CEUDProvFormVintageYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Vintage|Year") 
-CEUDProvFormSHEquipYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Equipment|Year" & grepl("^(^WH)",Equipment) ) 
+CEUDProvFormSHEquipYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Equipment|Year" & ! grepl("^WH",Equipment) ) 
+CEUDProvFormDHWEquipYr  <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Equipment|Year" & grepl("^WH",Equipment) ) 
+CEUDProvAirCon          <- subset( CEUD, Year == gStockYear & Metric == "Province|Equipment|Year" & grepl("^AC",Equipment) ) 
 CEUDProvFormYr          <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Year") 
 
 
+# AC system count only enumerates how many homes have ac - not how many don't. We need to append rows 
+# for equipment = No AC, computed as [total homes] - [ homes with ac ]
+for ( prov in  unique( CEUDProvFormYr$Province ) ) {
+  
+  HomesNOAC =  sum(CEUDProvFormYr$NumHomes[CEUDProvFormYr$Province==prov]) - 
+  
+               sum(CEUDProvAirCon$NumHomes[CEUDProvAirCon$Province==prov & grepl("^AC",CEUDProvAirCon$Equipment)])
 
+  appendme = data.frame( Province=c(prov), 
+                         Form=c("*"), 
+                         Stories=c("*"), 
+                         Equipment=c("no AC"), 
+                         Vintage=c("*"), 
+                         Year=c(gStockYear), 
+                         Metric = c("Province|Equipment|Year"),
+                         File = c("Nil"), 
+                         Sheet = c("Nil"), 
+                         Row =  c("Nil"), 
+                         Col = c("Nil"), 
+                         Number_static = c(HomesNOAC/1000),
+                         FilterExtra1990 = c(FALSE),
+                         NumHomes= c(HomesNOAC)
+                       )
+                          
+   CEUDProvAirCon =  rbind(  CEUDProvAirCon , appendme)                 
+
+} 
 
 ### ==============  Consider if the following is really necessary. 
 ### Perform substitutions on 'Equipment' toplogies - map to simpler definitions for now.  
@@ -178,7 +206,7 @@ stream_out (c("\n - About to parse the ERS data at", gPathToERS,"..."))
 debug_out  (c("reading ERS data from ", gPathToERS,"\n\n"))
 #=ERS data gets parsed here. 
 
-myERSdata <- read.csv (file=gPathToERS, nrows=gnERSrows, header=TRUE, sep = ",")
+myERSdata <- read.csv (file=gPathToERS, nrows=gnERSrows, header=TRUE, sep = ",") 
 
 #myERSdata <- read.csv (file=gPathToERS, header=TRUE, sep = ",")
 
