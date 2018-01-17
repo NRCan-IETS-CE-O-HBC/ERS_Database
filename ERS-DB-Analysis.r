@@ -13,7 +13,7 @@ stream_out <- function(msgs=c()){
 # Debugging output
 debug_out <- function(msgs=c()){
     if ( debug ){   
-	  writeLines(msgs, sep=" " ,DebugConn)
+	  writeLines(msgs, sep="" ,DebugConn)
     }
 }
 
@@ -64,12 +64,12 @@ gPathToERS   = "D_E_combined_2016-10-18-forR.csv"
 # General parameters
 
 # Number of archetypes to be defined: 
-gTotalArchetypes = 3000
+gTotalArchetypes = 30000
 
 # year for model
 gStockYear = 2013
 
-gnERSrows = 50000
+gnERSrows = 100000
 
 #==============
 # Start of script. 
@@ -82,7 +82,7 @@ stream_out(c(" - About to parse CEUD data (",gPathToCEUD, ")..."))
 
 debug_out(c("reading CEUD data from ",gPathToCEUD,"\n\n"))
 
-mydata <- read.csv (file=gPathToCEUD, header=TRUE, sep = ",")
+mydata <- read.csv (file=gPathToCEUD, header=TRUE, sep = ",", stringsAsFactors=FALSE)
 stream_out (c("  done (",nrow(mydata), " rows) \n\n"))
 
 
@@ -98,9 +98,18 @@ if (debug){
 # Currently,  CEUD-translator-txt.csv contains a couple of duplicate 1990 rows - these are
 # flagged by 'Filter_extra_1990 = true
 
-CEUD <- subset( mydata, FilterExtra1990 == FALSE )
+CEUDraw <- subset( mydata, FilterExtra1990 == FALSE, stringsAsFactors=FALSE )
 mydata <- c()
 # compute number of homes (Number_static is in '1000s')
+
+
+CEUDraw$Form[ CEUDraw$Form == "Ap" ] <- "AP"
+CEUDraw$Form[ CEUDraw$Form == "Ap+MH" ] <- "AP"
+CEUDraw$Equipment[ CEUDraw$Equipment == "Dual (oil/electric)" ] <- "Dual: (oil/electric)"
+
+
+CEUD <- subset (CEUDraw, select = c(Province, Form, Stories, Equipment, Vintage, Year, Metric, Number_static))
+CEUDraw <- c()
 CEUD$NumHomes = CEUD$Number_static * 1000
 
 
@@ -130,7 +139,7 @@ if (debug) {
 CEUDProvFormVintageYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Vintage|Year") 
 CEUDProvFormSHEquipYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Equipment|Year" & ! grepl("^WH",Equipment) ) 
 CEUDProvFormDHWEquipYr  <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Equipment|Year" & grepl("^WH",Equipment) ) 
-CEUDProvAirCon          <- subset( CEUD, Year == gStockYear & Metric == "Province|Equipment|Year" & grepl("^AC",Equipment) ) 
+CEUDProvAirConYr        <- subset( CEUD, Year == gStockYear & Metric == "Province|Equipment|Year" & grepl("^AC",Equipment) ) 
 CEUDProvFormYr          <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Year") 
 
 
@@ -140,8 +149,11 @@ for ( prov in  unique( CEUDProvFormYr$Province ) ) {
   
   HomesNOAC =  sum(CEUDProvFormYr$NumHomes[CEUDProvFormYr$Province==prov]) - 
   
-               sum(CEUDProvAirCon$NumHomes[CEUDProvAirCon$Province==prov & grepl("^AC",CEUDProvAirCon$Equipment)])
+               sum(CEUDProvAirConYr$NumHomes[CEUDProvAirConYr$Province==prov & grepl("^AC",CEUDProvAirConYr$Equipment)])
 
+               
+             
+               
   appendme = data.frame( Province=c(prov), 
                          Form=c("*"), 
                          Stories=c("*"), 
@@ -149,16 +161,11 @@ for ( prov in  unique( CEUDProvFormYr$Province ) ) {
                          Vintage=c("*"), 
                          Year=c(gStockYear), 
                          Metric = c("Province|Equipment|Year"),
-                         File = c("Nil"), 
-                         Sheet = c("Nil"), 
-                         Row =  c("Nil"), 
-                         Col = c("Nil"), 
                          Number_static = c(HomesNOAC/1000),
-                         FilterExtra1990 = c(FALSE),
                          NumHomes= c(HomesNOAC)
                        )
                           
-   CEUDProvAirCon =  rbind(  CEUDProvAirCon , appendme)                 
+   CEUDProvAirConYr =  rbind(  CEUDProvAirConYr , appendme)                 
 
 } 
 
@@ -216,11 +223,12 @@ debug_out("List of columns in ERS database:\n")
 debug_vector(sort(colnames(myERSdata)))
 
 # randomize the ERS data 
-myRandomERSdata <- myERSdata[sample(nrow(myERSdata)), ]
+#myRandomERSdata <- myERSdata[sample(nrow(myERSdata)), ]
+#myERSdata <- myRandomERSdata
 
 #stream_out (c("The ERS database is now randomized"))
 # set myERSdata to randomized data frame
-myERSdata <- myRandomERSdata
+
 
 stream_out (c(" - ... done.(",nrow(myERSdata)," rows)\n\n"))
 
@@ -353,6 +361,13 @@ debug_out (c("\n\n"))
   myERSdata$CEUDForm[ myERSdata$TYPEOFHOUSE.D == "Apartment" |  
                       myERSdata$TYPEOFHOUSE.D == "Apartment^Row" ] <- "AP"
  
+ 
+  # Create variant for DHW analysis because CEUD groups AP+MH"
+  myERSdata$CEUDFormDHW <- myERSdata$CEUDForm
+  
+  myERSdata$CEUDFormDHW[ myERSdata$CEUDForm=="MH" ] <- "AP"
+  myERSdata$CEUDFormDHW[ myERSdata$CEUDForm=="AP" ] <- "AP"
+ 
   
 debug_out (c("House types set in ERS for valid rows:\n"))
 debug_vector(c(unique(as.character(myERSdata$CEUDForm[myERSdata$CEUDForm != "error"]))))
@@ -361,6 +376,11 @@ debug_out (c("\n\n"))
 debug_out ("House Type Codes that weren't set properly:\n")
 debug_vector(c(unique(as.character(myERSdata$TYPEOFHOUSE.D[myERSdata$CEUDForm == "error"]))))
 debug_out (c("(",nrow(myERSdata[myERSdata$CEUDForm == "error",])," rows in total)\n"))
+
+
+
+
+
 
 stream_out(c("done.\n"))
   
@@ -688,7 +708,7 @@ stream_out(" - Mapping AC to CEUD definitions...")
    
   myERSdata$CEUDAirCon <- "error"
   myERSdata$CEUDAirCon [ myERSdata$AIRCONDTYPE.D == "N/A"  |
-                         myERSdata$AIRCONDTYPE.D == "Not^installed"    ] <- "none"
+                         myERSdata$AIRCONDTYPE.D == "Not^installed"    ] <- "no AC"
                          
   myERSdata$CEUDAirCon [ myERSdata$AIRCONDTYPE.D == "Conventional^A/C" |
                          myERSdata$AIRCONDTYPE.D == "Conventional^A/C:^with^vent.^cooling"  |
@@ -738,7 +758,7 @@ stream_out(" - Mapping DHW to CEUD definitions...")
                      myERSdata$PDHWFUEL.D == "Mixed^wood"     |
                      myERSdata$PDHWFUEL.D == "Wood^Pellets"    ] <- "WH-Wood"     
                          
-  myERSdata$CEUDdhw[ myERSdata$PDHWFUEL.D == "Propane"     ] <- "Other"  
+  myERSdata$CEUDdhw[ myERSdata$PDHWFUEL.D == "Propane"     ] <- "WH-Other"  
   
   
   
@@ -752,7 +772,7 @@ stream_out(" - Mapping DHW to CEUD definitions...")
                         myERSdata$SDHWFUEL.D == "Mixed^wood"     |
                         myERSdata$SDHWFUEL.D == "Wood^Pellets"  )  ] <- "WH-Wood"     
                          
-  myERSdata$CEUDdhw[ myERSdata$PDHWFUEL.D == "Solar" &  myERSdata$PDHWFUEL.D == "Propane"     ] <- "Other"  
+  myERSdata$CEUDdhw[ myERSdata$PDHWFUEL.D == "Solar" &  myERSdata$PDHWFUEL.D == "Propane"     ] <- "WH-Other"  
 
 
 
@@ -784,17 +804,14 @@ myERSdata$CEUDerror[ myERSdata$CEUDdhw == "error"  |
 # Create Keys to map records to CEUD topologies: 
 
 #myERSdata$CEUDTopProvFormVintageYr = paste()				   
-				   
+				                      
+myERSdata$CEUDTopProvFormVintage <-  paste( myERSdata$CEUDProvince, myERSdata$CEUDForm,    myERSdata$CEUDVintage, sep="|")								
+myERSdata$CEUDTopProvFormSH      <-  paste( myERSdata$CEUDProvince, myERSdata$CEUDForm,    myERSdata$CEUDSHCode,  sep="|")								
+myERSdata$CEUDTopProvFormDHW     <-  paste( myERSdata$CEUDProvince, myERSdata$CEUDFormDHW, myERSdata$CEUDdhw,  sep="|")								
+myERSdata$CEUDTopProvAC          <-  paste( myERSdata$CEUDProvince, myERSdata$CEUDAirCon, sep="|" )
 
+            
                    
-                   
-                   
-myERSdata$CEUDTopProvFormVintage <-  paste( myERSdata$CEUDProvince, myERSdata$CEUDForm, myERSdata$CEUDVintage, sep="|")								
-myERSdata$CEUDTopProvFormEquipment <-  paste( myERSdata$CEUDProvince, myERSdata$CEUDForm, myERSdata$CEUDSHCode, sep="|")								
-
-
-
-				   
 stream_out (c("\n - I processed ",nrow(myERSdata)," rows. ", nrow(myERSdata[myERSdata$CEUDerror,]), " contained errors \n\n"))
     
 	
@@ -813,7 +830,9 @@ myERSdata$ArchInclude <- FALSE
 gCount <- 0
 NumOfArchPerProv <- NULL
 NumOfArchPerProvFormVintage <- NULL
-NumOfArchPerProvFormEquipment <- NULL
+NumOfArchPerProvFormSH <- NULL
+NumOfArchPerProvFormDHW <- NULL
+NumOfArchPerProvAC <-NULL
 ArchProvince <- NULL
 
 
@@ -823,58 +842,60 @@ debug_out(c("# of archetypes needed for each province. \n"))
 arch_run_total <- 0
 
 
-
-CEUDProvFormVintageYr$Key = paste(CEUDProvFormVintageYr$Province,CEUDProvFormVintageYr$Form, CEUDProvFormVintageYr$Vintage, sep="|" )
-
- 
 #unique(as.character(CEUDProvFormVintageYr$Key))
 
 
-
+#--Initialize Counters 
+CountProvFormVintage <- NULL
+CountProvFormSH      <- NULL 
+CountProvAC          <- NULL
+CountProvFormDHW     <- NULL
 
 
 # BY PROVICE - Can be deleted
 #--for each Province in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
-for (ArchProvince in unique(CEUDProvFormYr$Province)){
-
-
-  #debug_out(c(ArchProvince))
-  
-  #debug_out(c("-",sum(CEUDProvFormYr$NumHomes[CEUDProvFormYr$Province == ArchProvince]),"\n")) 
-  
-  # Set size of buckets for each topology, and round them to nearest value
-  NumOfArchPerProv[ArchProvince] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Province == ArchProvince]))  / CEUDTotalHomes * gTotalArchetypes)
-  NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
-  
-  debug_out(c(" Prov-:", ArchProvince, " #: ", NumOfArchPerProv[ArchProvince],"\n"))
-  
-  
-  arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
-    
-}  
+#for (ArchProvince in unique(CEUDProvFormYr$Province)){
+#
+#
+#  #debug_out(c(ArchProvince))
+#  
+#  #debug_out(c("-",sum(CEUDProvFormYr$NumHomes[CEUDProvFormYr$Province == ArchProvince]),"\n")) 
+#  
+#  # Set size of buckets for each topology, and round them to nearest value
+#  NumOfArchPerProv[ArchProvince] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Province == ArchProvince]))  / CEUDTotalHomes * gTotalArchetypes)
+#  NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
+#  
+#  debug_out(c(" Prov-:", ArchProvince, " #: ", NumOfArchPerProv[ArchProvince],"\n"))
+#  
+#  
+#  arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
+#    
+#}  
 
 
 
 # BY Province / Form / Vintage 
 
+
+
+
+CEUDProvFormVintageYr$Key = paste(CEUDProvFormVintageYr$Province,CEUDProvFormVintageYr$Form, CEUDProvFormVintageYr$Vintage, sep="|" )
+
+ 
 #--for each Province|Form|Vintage in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
-for (ArchProvFormVintage in unique(CEUDProvFormVintageYr$Key)){
-
-
+for (KeyVal in unique(CEUDProvFormVintageYr$Key)){
+  NumbInCanada <- sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Key == KeyVal])
+  NumOfArch   <- NumbInCanada / CEUDTotalHomes * gTotalArchetypes
+  if ( NumOfArch < 1 && NumOfArch > 0 ) {
+    NumOfArch = 1
+  }  
+  NumOfArchPerProvFormVintage[KeyVal] <- round(NumOfArch)
+   
+  debug_out(c(" ProvFormVintage:", KeyVal, " #: ", NumOfArchPerProvFormVintage[KeyVal]," of ", sum(CEUDProvFormVintageYr$NumHomes),"\n"))
   
-  # Set size of buckets for each topology, and round them to nearest value
-  NumOfArchPerProvFormVintage[ArchProvFormVintage] <- 
-     ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Key == ArchProvFormVintage]))  / CEUDTotalHomes * gTotalArchetypes)
-  NumOfArchPerProvFormVintage[ArchProvFormVintage] <- round( NumOfArchPerProvFormVintage[ArchProvFormVintage] )
+  CountProvFormVintage[KeyVal] <- 0
   
-  
-  #NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
-  
-  debug_out(c(" ProvFormVintage:", ArchProvFormVintage, " #: ", NumOfArchPerProvFormVintage[ArchProvFormVintage]," of ", sum(CEUDProvFormVintageYr$NumHomes),"\n"))
-  
-  
-  #arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
-    
+     
 }  
 
 debug_out(c("---------------------------------------\n"))
@@ -885,71 +906,150 @@ debug_out(c("---------------------------------------\n"))
 CEUDProvFormSHEquipYr$Key = paste(CEUDProvFormSHEquipYr$Province,CEUDProvFormSHEquipYr$Form, CEUDProvFormSHEquipYr$Equipment, sep="|" )
 
 #--for each Province|Form|Equipment in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
-for (ArchProvFormEquip in unique(CEUDProvFormSHEquipYr$Key)){
-
-
+for (KeyVal in unique(CEUDProvFormSHEquipYr$Key)){
+    
+  NumbInCanada <- sum(CEUDProvFormSHEquipYr$NumHomes[CEUDProvFormSHEquipYr$Key == KeyVal])
+  NumOfArch   <- NumbInCanada / CEUDTotalHomes * gTotalArchetypes
+  if ( NumOfArch < 1 && NumOfArch > 0 ) {
+    NumOfArch = 1
+  }  
+  NumOfArchPerProvFormSH[KeyVal] <- round(NumOfArch) 
   
-  # Set size of buckets for each topology, and round them to nearest value
-  NumOfArchPerProvFormEquipment[ArchProvFormEquip] <- 
-    ( (sum(CEUDProvFormSHEquipYr$NumHomes[CEUDProvFormSHEquipYr$Key == ArchProvFormEquip]) )  
-       / CEUDTotalHomes * gTotalArchetypes
-     )
-  NumOfArchPerProvFormEquipment[ArchProvFormEquip] <- round( NumOfArchPerProvFormEquipment[ArchProvFormEquip] )
+  CountProvFormSH[KeyVal] <- 0 
   
-  #NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
-  
-  debug_out(c(" ProvFormEquip:>", ArchProvFormEquip, "< ##: ", NumOfArchPerProvFormEquipment[ArchProvFormEquip]," of ", sum(CEUDProvFormSHEquipYr$NumHomes), "\n"))
-  
-  
-  #arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
+  debug_out(c(" ProvFormSH:>", KeyVal, "< ##: ", NumOfArchPerProvFormSH[KeyVal]," of ", sum(CEUDProvFormSHEquipYr$NumHomes), "\n"))
     
 }  
 
+ 
+ CEUDProvFormDHWEquipYr$Key = paste(CEUDProvFormDHWEquipYr$Province,CEUDProvFormDHWEquipYr$Form, CEUDProvFormDHWEquipYr$Equipment, sep="|" )
+
+#--for each Province|Form|WH in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
+for (KeyVal in unique(CEUDProvFormDHWEquipYr$Key)){
+  
+  NumbInCanada <- sum(CEUDProvFormDHWEquipYr$NumHomes[CEUDProvFormDHWEquipYr$Key == KeyVal])
+  NumOfArch   <- NumbInCanada / CEUDTotalHomes * gTotalArchetypes
+  
+  if ( NumOfArch < 1 && NumOfArch > 0 ) {
+    NumOfArch = 1
+  }
+ 
+  NumOfArchPerProvFormDHW[KeyVal] <- round(NumOfArch) 
+ 
+  CountProvFormDHW[KeyVal] <- 0 
+  
+  debug_out(c(" ProvFormDHW:>", KeyVal, "< ##: ", NumOfArchPerProvFormDHW[KeyVal]," of ", sum(CEUDProvFormDHWEquipYr$NumHomes), "\n"))
+    
+}  
+
+CEUDProvAirConYr$Key = paste ( CEUDProvAirConYr$Province, CEUDProvAirConYr$Equipment, sep="|" ) 
+
+#--for each Province|Form|AC in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
+for (KeyVal in unique(CEUDProvAirConYr$Key)){
+      
+  NumbInCanada <- sum(CEUDProvAirConYr$NumHomes[CEUDProvAirConYr$Key == KeyVal])
+  NumOfArch   <- NumbInCanada / CEUDTotalHomes * gTotalArchetypes
+  
+  if ( NumOfArch < 1 && NumOfArch > 0 ) {
+    NumOfArch = 1
+  }
+
+  NumOfArchPerProvAC[KeyVal] <- round(NumOfArch)
+    
+  CountProvAC[KeyVal] <- 0 
+  
+  debug_out(c(" ProvAC:>", KeyVal, "< ##: ", NumOfArchPerProvAC[KeyVal]," of ", sum(CEUDProvAirConYr$NumHomes), "\n"))
+    
+}  
+
+ 
 
 
 
-
-
-#dataframe:   province | number of homes in the set| counter
-ArchetypeDataFrame  <- data.frame(ArchProvince,NumOfArchPerProv,gCount)
-#set ArchProvince from row names
-ArchetypeDataFrame$ArchProvince <- row.names(ArchetypeDataFrame)
-
-
-#--for each HouseID in my ERS data, fill the archetype bucket until full 
-ERSProvince <- NULL
-ID <- NULL
-numberofarchetypesforERSProvinceID <- NULL  
-CountOfArchPerProv <- NULL
-
-
-# Set counters for province to zero. 
-for (Prov in unique(CEUDProvFormYr$Province) ){
-
-  CountOfArchPerProv[Prov] <- 0
-
-}
+ 
 
 
 
-
+rowcount <- 0
+batchcount <- 0
+FoundCount <- 0
 
 #--for each HOUSEID in my ERS data , add a TRUE or FALSE if that ID will be added to the Archetype
 for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror  ] )){
   
-  Prov <- myERSdata$CEUDProvince[myERSdata$HOUSE_ID.D == ID ]
-
-  #debug_out(c("> ", ID, "PROV:", Prov,"\n"))
+  rowcount <- rowcount + 1
+  batchcount <- batchcount + 1 
   
-  if ( CountOfArchPerProv[Prov] < NumOfArchPerProv[Prov] ){
-     
-	 CountOfArchPerProv[Prov] <- CountOfArchPerProv[Prov] + 1
+ 
+  # Get topology codes fro this record 
+  ProvFormVintage  <- myERSdata$CEUDTopProvFormVintage[myERSdata$HOUSE_ID.D == ID ]
+  ProvFormSHEquip  <- myERSdata$CEUDTopProvFormSH[myERSdata$HOUSE_ID.D == ID ]
+  ProvFormDHWEquip <- myERSdata$CEUDTopProvFormDHW[myERSdata$HOUSE_ID.D == ID ]
+  ProvAC           <- myERSdata$CEUDTopProvAC[myERSdata$HOUSE_ID.D == ID ]
+  
+  #stream_out (c(" --->", ProvFormVintage,"&&",ProvFormSHEquip,"&&",ProvFormDHWEquip,"&&",ProvAC, "<\n"))
+    
+  # Check to see if there is room in the 
+  
+  if ( CountProvFormVintage[ProvFormVintage]  < NumOfArchPerProvFormVintage[ProvFormVintage] &&  
+       CountProvFormSH[ProvFormSHEquip]       < NumOfArchPerProvFormSH[ProvFormSHEquip]  && 
+       CountProvFormDHW[ProvFormDHWEquip]     < NumOfArchPerProvFormDHW[ProvFormDHWEquip] && 
+       CountProvAC[ProvAC]                    < NumOfArchPerProvAC[ProvAC]      ){
+       
+       
+     # There is room: Mark this record for inclusion 
 	 myERSdata$ArchInclude[myERSdata$HOUSE_ID.D == ID] <- TRUE 
-	 	 
+      
+     # Increment counters 
+	 CountProvFormVintage[ProvFormVintage] <- CountProvFormVintage[ProvFormVintage] + 1
+     CountProvFormSH[ProvFormSHEquip]      <- CountProvFormSH[ProvFormSHEquip] + 1 
+     CountProvFormDHW[ProvFormDHWEquip]    <- CountProvFormDHW[ProvFormDHWEquip] + 1 
+     CountProvAC[ProvAC]                   <- CountProvAC[ProvAC] + 1
+     
+	 FoundCount <- FoundCount + 1
+ 	 
+   }
+   
+   if ( batchcount >= 5000 ) {
+   
+     stream_out (c("  - scanned ",rowcount, " ERS records, selected ", FoundCount," archetypes.\n"))
+     batchcount <- 0
+    
    }
   
 }
 
+stream_out (c("  - scanned ",rowcount, " ERS records in total, selected ", FoundCount," archetypes.\n"))
+     
+
+myERSdata$CEUDWeight <-NULL     
+     
+for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror && myERSdata$ArchInclude ] )){     
+
+  ProvFormVintage  <- myERSdata$CEUDTopProvFormVintage[myERSdata$HOUSE_ID.D == ID ]
+  ProvFormSHEquip  <- myERSdata$CEUDTopProvFormSH[myERSdata$HOUSE_ID.D == ID ]
+  ProvFormDHWEquip <- myERSdata$CEUDTopProvFormDHW[myERSdata$HOUSE_ID.D == ID ]
+  ProvAC           <- myERSdata$CEUDTopProvAC[myERSdata$HOUSE_ID.D == ID ]
+
+
+
+
+
+
+
+} 
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
 
 mySubData <- myERSdata[myERSdata$ArchInclude,]
 
