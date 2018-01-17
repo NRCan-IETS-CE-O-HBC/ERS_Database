@@ -127,8 +127,8 @@ if (debug) {
 # ==============
 # Create separate topologies 
 # Get subsets that contain housing stock by aggregations of interest. 
-CEUDProvFormVintageYr <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Vintage|Year") 
-CEUDProvFormEquipYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Equipment|Year") 
+CEUDProvFormVintageYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Vintage|Year") 
+CEUDProvFormSHEquipYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Equipment|Year" & grepl("^[^WH]",Equipment) ) 
 CEUDProvFormYr        <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Year") 
 
 
@@ -138,24 +138,24 @@ CEUDProvFormYr        <- subset( CEUD, Year == gStockYear & Metric == "Province|
 ### Perform substitutions on 'Equipment' toplogies - map to simpler definitions for now.  
 ##if (debug){
 ##  debug_out ("Equipment keyword replacement (pre)\n")
-##  cat( unique( as.vector(CEUDProvFormEquipYr$Equipment) ) )
+##  cat( unique( as.vector(CEUDProvFormSHEquipYr$Equipment) ) )
 ##  debug_out ("/Equipment keyword replacement (pre)\n")
 ##}
-##CEUDProvFormEquipYr$Equipment <- as.character(CEUDProvFormEquipYr$Equipment)
+##CEUDProvFormSHEquipYr$Equipment <- as.character(CEUDProvFormSHEquipYr$Equipment)
 ##
-##CEUDProvFormEquipYr$Equipment[ CEUDProvFormEquipYr$Equipment == "Gas-Medium" ] <- "Gas"
-##CEUDProvFormEquipYr$Equipment[ CEUDProvFormEquipYr$Equipment == "Gas-High"   ] <- "Gas"
-##CEUDProvFormEquipYr$Equipment[ CEUDProvFormEquipYr$Equipment == "Gas-Normal" ] <- "Gas"
+##CEUDProvFormSHEquipYr$Equipment[ CEUDProvFormSHEquipYr$Equipment == "Gas-Medium" ] <- "Gas"
+##CEUDProvFormSHEquipYr$Equipment[ CEUDProvFormSHEquipYr$Equipment == "Gas-High"   ] <- "Gas"
+##CEUDProvFormSHEquipYr$Equipment[ CEUDProvFormSHEquipYr$Equipment == "Gas-Normal" ] <- "Gas"
 ##
-##CEUDProvFormEquipYr$Equipment[ CEUDProvFormEquipYr$Equipment == "Oil-Medium" ] <- "Oil"
-##CEUDProvFormEquipYr$Equipment[ CEUDProvFormEquipYr$Equipment == "Oil-High"   ] <- "Oil"
-##CEUDProvFormEquipYr$Equipment[ CEUDProvFormEquipYr$Equipment == "Oil-Normal" ] <- "Oil"
+##CEUDProvFormSHEquipYr$Equipment[ CEUDProvFormSHEquipYr$Equipment == "Oil-Medium" ] <- "Oil"
+##CEUDProvFormSHEquipYr$Equipment[ CEUDProvFormSHEquipYr$Equipment == "Oil-High"   ] <- "Oil"
+##CEUDProvFormSHEquipYr$Equipment[ CEUDProvFormSHEquipYr$Equipment == "Oil-Normal" ] <- "Oil"
 ##
-##CEUDProvFormEquipYr$Equipment <- as.factor(CEUDProvFormEquipYr$Equipment)
+##CEUDProvFormSHEquipYr$Equipment <- as.factor(CEUDProvFormSHEquipYr$Equipment)
 ##
 ##if ( debug ){
 ##  debug_out ("Equipment keyword replacement (post)\n")
-##  cat (paste(c(unique( as.character(CEUDProvFormEquipYr$Equipment))), sep="\n" ))
+##  cat (paste(c(unique( as.character(CEUDProvFormSHEquipYr$Equipment))), sep="\n" ))
 ##  debug_out ("Equipment keyword replacement (post)\n")
 ##}
 
@@ -175,10 +175,8 @@ debug_out (c( "  - If I generate", gTotalArchetypes, "archetypes, each archetype
 
 #=============ERS 
 stream_out (c("\n - About to parse the ERS data at", gPathToERS,"..."))
-debug_out (c("reading ERS data from ", gPathToERS,"\n\n"))
+debug_out  (c("reading ERS data from ", gPathToERS,"\n\n"))
 #=ERS data gets parsed here. 
-
-
 
 myERSdata <- read.csv (file=gPathToERS, nrows=gnERSrows, header=TRUE, sep = ",")
 
@@ -764,6 +762,8 @@ myERSdata$CEUDerror[ myERSdata$CEUDdhw == "error"  |
                    
                    
 myERSdata$CEUDTopProvFormVintage <-  paste( myERSdata$CEUDProvince, myERSdata$CEUDForm, myERSdata$CEUDVintage, sep="|")								
+myERSdata$CEUDTopProvFormEquipment <-  paste( myERSdata$CEUDProvince, myERSdata$CEUDForm, myERSdata$CEUDSHCode, sep="|")								
+
 
 
 				   
@@ -798,17 +798,14 @@ arch_run_total <- 0
 
 CEUDProvFormVintageYr$Key = paste(CEUDProvFormVintageYr$Province,CEUDProvFormVintageYr$Form, CEUDProvFormVintageYr$Vintage, sep="|" )
 
-CEUDProvFormEquipYr$Key = paste(CEUDProvFormEquipYr$Province,CEUDProvFormEquipYr$Form, CEUDProvFormEquipYr$CEUDSHCode, sep="|" )
-
-
-
+ 
 #unique(as.character(CEUDProvFormVintageYr$Key))
 
 
 
 
 
-
+# BY PROVICE - Can be deleted
 #--for each Province in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
 for (ArchProvince in unique(CEUDProvFormYr$Province)){
 
@@ -830,19 +827,22 @@ for (ArchProvince in unique(CEUDProvFormYr$Province)){
 
 
 
+# BY Province / Form / Vintage 
+
 #--for each Province|Form|Vintage in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
 for (ArchProvFormVintage in unique(CEUDProvFormVintageYr$Key)){
 
 
   
   # Set size of buckets for each topology, and round them to nearest value
-  NumOfArchPerProvFormVintage[ArchProvFormVintage] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Key == ArchProvFormVintage]))  / CEUDTotalHomes * gTotalArchetypes)
+  NumOfArchPerProvFormVintage[ArchProvFormVintage] <- 
+     ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Key == ArchProvFormVintage]))  / CEUDTotalHomes * gTotalArchetypes)
   NumOfArchPerProvFormVintage[ArchProvFormVintage] <- round( NumOfArchPerProvFormVintage[ArchProvFormVintage] )
   
   
   #NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
   
-  debug_out(c(" ProvFormVintage:", ArchProvFormVintage, " #: ", NumOfArchPerProvFormVintage[ArchProvFormVintage],"\n"))
+  debug_out(c(" ProvFormVintage:", ArchProvFormVintage, " #: ", NumOfArchPerProvFormVintage[ArchProvFormVintage]," of ", sum(CEUDProvFormVintageYr$NumHomes),"\n"))
   
   
   #arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
@@ -851,18 +851,26 @@ for (ArchProvFormVintage in unique(CEUDProvFormVintageYr$Key)){
 
 debug_out(c("---------------------------------------\n"))
 
+
+# BY Province / Form / SH EQUIPMENT
+
+CEUDProvFormSHEquipYr$Key = paste(CEUDProvFormSHEquipYr$Province,CEUDProvFormSHEquipYr$Form, CEUDProvFormSHEquipYr$Equipment, sep="|" )
+
 #--for each Province|Form|Equipment in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
-for (ArchProvFormEquip in unique(CEUDProvFormEquipYr$Key)){
+for (ArchProvFormEquip in unique(CEUDProvFormSHEquipYr$Key)){
 
 
   
   # Set size of buckets for each topology, and round them to nearest value
-  NumOfArchPerProvFormEquipment[ArchProvFormEquip] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormEquipYr$Key == ArchProvFormEquip]))  / CEUDTotalHomes * gTotalArchetypes)
-  NumOfArchPerProvFormEquipment[ArchProvFormEquip] <- round( NumOfArchPerProvFormVintage[ArchProvFormEquip] )
+  NumOfArchPerProvFormEquipment[ArchProvFormEquip] <- 
+    ( (sum(CEUDProvFormSHEquipYr$NumHomes[CEUDProvFormSHEquipYr$Key == ArchProvFormEquip]) )  
+       / CEUDTotalHomes * gTotalArchetypes
+     )
+  NumOfArchPerProvFormEquipment[ArchProvFormEquip] <- round( NumOfArchPerProvFormEquipment[ArchProvFormEquip] )
   
   #NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
   
-  debug_out(c(" ProvFormEquip:", ArchProvFormEquip, " #: ", NumOfArchPerProvFormEquipment[ArchProvFormEquip],"\n"))
+  debug_out(c(" ProvFormEquip:>", ArchProvFormEquip, "< ##: ", NumOfArchPerProvFormEquipment[ArchProvFormEquip]," of ", sum(CEUDProvFormSHEquipYr$NumHomes), "\n"))
   
   
   #arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
