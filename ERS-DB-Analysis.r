@@ -128,8 +128,8 @@ if (debug) {
 # Create separate topologies 
 # Get subsets that contain housing stock by aggregations of interest. 
 CEUDProvFormVintageYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Vintage|Year") 
-CEUDProvFormSHEquipYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Equipment|Year" & grepl("^[^WH]",Equipment) ) 
-CEUDProvFormYr        <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Year") 
+CEUDProvFormSHEquipYr   <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Equipment|Year" & grepl("^(^WH)",Equipment) ) 
+CEUDProvFormYr          <- subset( CEUD, Year == gStockYear & Metric == "Province|Form|Year") 
 
 
 
