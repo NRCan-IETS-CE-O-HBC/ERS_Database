@@ -64,7 +64,7 @@ gPathToERS   = "D_E_combined_2016-10-18-forR.csv"
 # General parameters
 
 # Number of archetypes to be defined: 
-gTotalArchetypes = 500
+gTotalArchetypes = 1000
 
 # year for model
 gStockYear = 2013
@@ -108,7 +108,7 @@ CEUDraw$Form[ CEUDraw$Form == "Ap+MH" ] <- "AP"
 CEUDraw$Equipment[ CEUDraw$Equipment == "Dual (oil/electric)" ] <- "Dual: (oil/electric)"
 
 
-GroupEquipmentByFuelType = FALSE 
+GroupEquipmentByFuelType = TRUE 
 
 if ( GroupEquipmentByFuelType ){
 
@@ -870,28 +870,6 @@ CountProvAC          <- NULL
 CountProvFormDHW     <- NULL
 
 
-# BY PROVICE - Can be deleted
-#--for each Province in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
-#for (ArchProvince in unique(CEUDProvFormYr$Province)){
-#
-#
-#  #debug_out(c(ArchProvince))
-#  
-#  #debug_out(c("-",sum(CEUDProvFormYr$NumHomes[CEUDProvFormYr$Province == ArchProvince]),"\n")) 
-#  
-#  # Set size of buckets for each topology, and round them to nearest value
-#  NumOfArchPerProv[ArchProvince] <- ( (sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Province == ArchProvince]))  / CEUDTotalHomes * gTotalArchetypes)
-#  NumOfArchPerProv[ArchProvince] <- round(NumOfArchPerProv[ArchProvince])
-#  
-#  debug_out(c(" Prov-:", ArchProvince, " #: ", NumOfArchPerProv[ArchProvince],"\n"))
-#  
-#  
-#  arch_run_total = arch_run_total + NumOfArchPerProv[ArchProvince] 
-#    
-#}  
-
-
-
 # BY Province / Form / Vintage 
 
 
@@ -1070,16 +1048,18 @@ adjMax <- 0.2
 
 Loops = 20
 
-gNumHomesEachArchRepresents = CEUDTotalHomes / FoundCount 
+gNumHomesEachArchRepresents = round(CEUDTotalHomes / FoundCount)
 myERSdata$CEUDInitialWeights[ ! myERSdata$CEUDerror & myERSdata$ArchInclude ]<- gNumHomesEachArchRepresents
 myERSdata$CEUDFinalWeights  <- myERSdata$CEUDInitialWeights
 
 stream_out (c(" - Computing weights (starting at ", round(gNumHomesEachArchRepresents)," homes per archetype) \n"))
 
 
-while( ! WeightsDone ) {
 
+while( ! WeightsDone ) {
+  
   myERSdata$CEUDInitialWeights<- myERSdata$CEUDFinalWeights
+  
   # Start with least important: AC 
   for ( KeyVal in unique(CEUDProvAirConYr$Key) ) {
   
@@ -1106,7 +1086,7 @@ while( ! WeightsDone ) {
       if (adjWeight < 1 - adjMax ) { adjWeight = 1 - adjMax }
       
       myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] <-
-         myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight    
+        round( myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight   )
         
       debug_out (c(" (Loop ", WeightLoopCount,") AC:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = ", ERSHomes, 
                    " [count: ", ERSArchetypes,  " / ", CEUDArchetypes," w=* ", adjWeight," ]\n"))
@@ -1125,10 +1105,13 @@ while( ! WeightsDone ) {
   #                                                         " ERSi= ", sum(myERSdata$CEUDInitialWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
   #                                                         " ERSf= ", sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
   #                                                         "\n"))
-                                                          
+  #                                                        
+  stream_out (c(" # ", WeightLoopCount, "   ON-Segment: AC -", 
+                                                          " ERSi= ", sum(myERSdata$CEUDInitialWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" & myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
+                                                          " ERSf= ", sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" &   myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
+                                                          "\n"))  
+          
 
-
-  
   #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   # Now try 3rd most important thing: DHW
   
@@ -1162,7 +1145,7 @@ while( ! WeightsDone ) {
       
       
       myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] <-
-         myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight    
+        round( myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight )
         
         
       postweight <- sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ])  / ERSArchetypes
@@ -1175,22 +1158,23 @@ while( ! WeightsDone ) {
       debug_out (c(" (Loop ", WeightLoopCount,") DHW:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = ", ERSHomes, 
                    " [count: ", ERSArchetypes,  "/", CEUDArchetypes,"w=*", adjWeight,":",round(preweight), " -> ",round(postweight), "]\n"))
  
-    }else {
+      }else {
       adjWeight = 0 
       
     
       debug_out (c(" (Loop ", WeightLoopCount,") DHW:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = NONE FOUND! ]", ERSHomes, 
                      " [count: --- /", CEUDArchetypes,"w = nil ]\n"))
-    }    
+      }    
+  
+  
+    }
   }
+  
+  stream_out (c("       ON-Segment: DHW-", 
+                                                          " ERSi= ", sum(myERSdata$CEUDInitialWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" & myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
+                                                          " ERSf= ", sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" &   myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
+                                                          "\n"))    
 
-  #stream_out (c("         ON|SD|WH-Gas: CEUD = ", sum(CEUDProvAirConYr$NumHomes[  CEUDProvFormDHWEquip$Key == "ON|SD|WH-Gas" ]),
-  #                                                        " ERSi= ", sum(myERSdata$CEUDInitialWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" & myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas-High" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
-  #                                                        " ERSf= ", sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" &   myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas-High" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
-  #                                                        "\n"))  
-  
-  
-  
   # Second most important thing: Vintage 
   for ( KeyVal in unique(CEUDProvFormVintageYr$Key) ) {
   
@@ -1224,7 +1208,7 @@ while( ! WeightsDone ) {
       
       
       myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormVintage == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] <-
-         myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormVintage == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight    
+         round(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormVintage == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight)
         
         
       postweight <- sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormVintage == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]) / ERSArchetypes
@@ -1242,7 +1226,14 @@ while( ! WeightsDone ) {
                      " [count: --- /", CEUDArchetypes,"w = nil ]\n"))
     }  
   } 
-  
+                                                          
+          
+  stream_out (c("       ON-Segment: VIN-", 
+                                                          " ERSi= ", sum(myERSdata$CEUDInitialWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" & myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
+                                                          " ERSf= ", sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" &   myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
+                                                          "\n"))                    
+
+
    # Most important thing gets final say: Equipment (&therefore, fuel type)
   for ( KeyVal in unique(CEUDProvFormSHEquipYr$Key) ) {
   
@@ -1273,7 +1264,7 @@ while( ! WeightsDone ) {
       
       
       myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormSH == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] <-
-         myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormSH == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight    
+         round( myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormSH == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight )   
         
         
       postweight <- sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormSH == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]) / ERSArchetypes
@@ -1292,8 +1283,16 @@ while( ! WeightsDone ) {
                      " [count: --- /", CEUDArchetypes,"w = nil ]\n"))
     }  
   } 
-  
-  
+                                                            
+                                                          
+ 
+  stream_out (c("       ON-Segment: SH -", 
+                                                          " ERSi= ", sum(myERSdata$CEUDInitialWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" & myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
+                                                          " ERSf= ", sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == "ON|AC-Central" &  myERSdata$CEUDTopProvFormDHW == "ON|SD|WH-Gas" &   myERSdata$CEUDTopProvFormVintage=="ON|SD|1978-1983" & myERSdata$CEUDTopProvFormSH=="ON|SD|Gas" & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]),
+                                                          "\n"))  
+ 
+                                                          
+
   
   WeightLoopCount <- WeightLoopCount + 1
    
@@ -1340,7 +1339,7 @@ for (ArchProvince in unique(CEUDProvFormYr$Province)){
 stream_out(c("Total archetypes:", arch_run_total,"\n"))
 
 
-stream_out(c("Net Homes represented by archetypes:", round(sum(myERSdata$CEUDFinalWeights[myERSdata$ArchInclude] )),"\n"))
+stream_out(c("Net Homes represented by archetypes:", round(sum(myERSdata$CEUDFinalWeights[myERSdata$ArchInclude] )/1E06, digits=4)," million \n"))
 
 
 stream_out (" - writing out ERS dbs (myERSdata_out.txt)...")
