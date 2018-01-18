@@ -64,12 +64,12 @@ gPathToERS   = "D_E_combined_2016-10-18-forR.csv"
 # General parameters
 
 # Number of archetypes to be defined: 
-gTotalArchetypes = 30000
+gTotalArchetypes = 10000
 
 # year for model
 gStockYear = 2013
 
-gnERSrows = 100000
+gnERSrows = 600000
 
 #==============
 # Start of script. 
@@ -102,7 +102,7 @@ CEUDraw <- subset( mydata, FilterExtra1990 == FALSE, stringsAsFactors=FALSE )
 mydata <- c()
 # compute number of homes (Number_static is in '1000s')
 
-
+# Translate some ambigous names. 
 CEUDraw$Form[ CEUDraw$Form == "Ap" ] <- "AP"
 CEUDraw$Form[ CEUDraw$Form == "Ap+MH" ] <- "AP"
 CEUDraw$Equipment[ CEUDraw$Equipment == "Dual (oil/electric)" ] <- "Dual: (oil/electric)"
@@ -223,10 +223,11 @@ debug_out("List of columns in ERS database:\n")
 debug_vector(sort(colnames(myERSdata)))
 
 # randomize the ERS data 
-#myRandomERSdata <- myERSdata[sample(nrow(myERSdata)), ]
-#myERSdata <- myRandomERSdata
+set.seed(42);
+myRandomERSdata <- myERSdata[sample(nrow(myERSdata)), ]
+myERSdata <- myRandomERSdata
 
-#stream_out (c("The ERS database is now randomized"))
+stream_out (c("The ERS database is now randomized"))
 # set myERSdata to randomized data frame
 
 
@@ -975,7 +976,7 @@ batchcount <- 0
 FoundCount <- 0
 
 #--for each HOUSEID in my ERS data , add a TRUE or FALSE if that ID will be added to the Archetype
-for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror  ] )){
+for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror ] )){
   
   rowcount <- rowcount + 1
   batchcount <- batchcount + 1 
@@ -986,6 +987,8 @@ for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror  ] )){
   ProvFormSHEquip  <- myERSdata$CEUDTopProvFormSH[myERSdata$HOUSE_ID.D == ID ]
   ProvFormDHWEquip <- myERSdata$CEUDTopProvFormDHW[myERSdata$HOUSE_ID.D == ID ]
   ProvAC           <- myERSdata$CEUDTopProvAC[myERSdata$HOUSE_ID.D == ID ]
+  CEUDError        <- myERSdata$CEUDError[myERSdata$HOUSE_ID.D == ID]
+  
   
   #stream_out (c(" --->", ProvFormVintage,"&&",ProvFormSHEquip,"&&",ProvFormDHWEquip,"&&",ProvAC, "<\n"))
     
@@ -994,12 +997,13 @@ for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror  ] )){
   if ( CountProvFormVintage[ProvFormVintage]  < NumOfArchPerProvFormVintage[ProvFormVintage] &&  
        CountProvFormSH[ProvFormSHEquip]       < NumOfArchPerProvFormSH[ProvFormSHEquip]  && 
        CountProvFormDHW[ProvFormDHWEquip]     < NumOfArchPerProvFormDHW[ProvFormDHWEquip] && 
-       CountProvAC[ProvAC]                    < NumOfArchPerProvAC[ProvAC]      ){
+       CountProvAC[ProvAC]                    < NumOfArchPerProvAC[ProvAC]                 ){
        
        
      # There is room: Mark this record for inclusion 
 	 myERSdata$ArchInclude[myERSdata$HOUSE_ID.D == ID] <- TRUE 
       
+          
      # Increment counters 
 	 CountProvFormVintage[ProvFormVintage] <- CountProvFormVintage[ProvFormVintage] + 1
      CountProvFormSH[ProvFormSHEquip]      <- CountProvFormSH[ProvFormSHEquip] + 1 
@@ -1023,33 +1027,271 @@ stream_out (c("  - scanned ",rowcount, " ERS records in total, selected ", Found
      
 
 myERSdata$CEUDWeight <-NULL     
-     
-for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror && myERSdata$ArchInclude ] )){     
-
-  ProvFormVintage  <- myERSdata$CEUDTopProvFormVintage[myERSdata$HOUSE_ID.D == ID ]
-  ProvFormSHEquip  <- myERSdata$CEUDTopProvFormSH[myERSdata$HOUSE_ID.D == ID ]
-  ProvFormDHWEquip <- myERSdata$CEUDTopProvFormDHW[myERSdata$HOUSE_ID.D == ID ]
-  ProvAC           <- myERSdata$CEUDTopProvAC[myERSdata$HOUSE_ID.D == ID ]
 
 
+WeightsDone <- FALSE
+WeightLoopCount <- 0 
+LastLoop <- FALSE 
+# Default all weights to zero. 
+myERSdata$CEUDInitialWeights <- 0 
 
 
+# For homes in the archetype set, set initial weights to estimate (based on target archetypes) 
+myERSdata$CEUDInitialWeights[ ! myERSdata$CEUDerror & myERSdata$ArchInclude ]<- gNumHomesEachArchRepresents 
+
+# Copy to final weights 
+myERSdata$CEUDFinalWeights  <- myERSdata$CEUDInitialWeights
+myERSdata$CEUDCountCol <- 0 
+myERSdata$CEUDCountCol[myERSdata$ArchInclude] <- 1 
+
+NetOver <- 0 
+NetUnder <- 0 
+
+relaxFactor <- 0.9
+
+adjMax <- 0.2
+
+Loops = 20
+
+stream_out (c(" - Computing weights (starting at ", round(gNumHomesEachArchRepresents)," homes per archetype) \n"))
 
 
+while( ! WeightsDone ) {
 
-} 
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
+  # Start with least important: AC 
+  for ( KeyVal in unique(CEUDProvAirConYr$Key) ) {
+  
+    CEUDHomes = CEUDProvAirConYr$NumHomes[  CEUDProvAirConYr$Key == KeyVal ]
+    CEUDArchetypes = NumOfArchPerProvAC[KeyVal]
+    
+    
+    ERSHomes <- sum( myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude] )  
+    
+    ERSArchetypes <- sum( myERSdata$CEUDCountCol[ myERSdata$CEUDTopProvAC == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] ) 
+      
+    if ( !is.null(ERSArchetypes) ){ ERSArchetypes <- 0 }
+      
+    if ( LastLoop ) {
+      # Don't recompute weights, just evaluate over/under representation 
+      
+      if ( ERSHomes > CEUDHomes ) { NetOver   = NetOver + ERSHomes - CEUDHomes }
+      if ( ERSHomes < CEUDHomes  ) { NetUnder = NetUnder + CEUDHomes - ERSHomes }
+   
+   
+    }else if ( ERSHomes > 0 && ! LastLoop )   {         
+      adjWeight = ( CEUDHomes / ERSHomes - 1 ) * relaxFactor + 1
+      if (adjWeight > 1 + adjMax ) { adjWeight = 1 + adjMax }
+      if (adjWeight < 1 - adjMax ) { adjWeight = 1 - adjMax }
+      
+      myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] <-
+         myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvAC == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight    
+        
+      debug_out (c(" (Loop ", WeightLoopCount,") AC:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = ", ERSHomes, 
+                   " [count: ", ERSArchetypes,  " / ", CEUDArchetypes," w=* ", adjWeight," ]\n"))
+    
+        
+    }else {
+      adjWeight = 0 
+      
+    
+      debug_out (c(" (Loop ", WeightLoopCount,") AC:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = NONE FOUND! ]", ERSHomes, 
+                     " [count: --- / ", CEUDArchetypes," w = nil ]\n"))
+    }  
+  }
+  #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  # Now try 3rd most important thing: DHW
+  
+  for ( KeyVal in unique(CEUDProvFormDHWEquipYr$Key) ) {
+  
+    CEUDHomes = CEUDProvFormDHWEquipYr$NumHomes[  CEUDProvFormDHWEquipYr$Key == KeyVal ]
+    CEUDArchetypes = NumOfArchPerProvFormDHW[KeyVal]
+    
+    
+    
+    
+    ERSHomes <- sum( myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude] )  
+    
+    ERSArchetypes <- sum( myERSdata$CEUDCountCol[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] ) 
+          
+    
+          
+    if ( LastLoop ) {
+      # Don't recompute weights, just evaluate over/under representation 
+      
+      if ( ERSHomes > CEUDHomes ) { NetOver = NetOver +  ERSHomes - CEUDHomes }
+      if ( ERSHomes < CEUDHomes  ) { NetUnder = NetUnder + CEUDHomes - ERSHomes }
+   
+   
+    }else if ( ERSHomes > 0 )   {         
+      adjWeight = ( CEUDHomes / ERSHomes - 1 ) * relaxFactor + 1 
+      if (adjWeight > 1 + adjMax ) { adjWeight = 1 + adjMax }
+      if (adjWeight < 1 - adjMax ) { adjWeight = 1 - adjMax }
+      
+      preweight = ERSHomes / ERSArchetypes #<- ave(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ])      
+      
+      
+      myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] <-
+         myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight    
+        
+        
+      postweight <- sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormDHW == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ])  / ERSArchetypes
+      
+      
+      
+      
+      if ( KeyVal == "ON|SD|WH-Elec"  ) {
+      stream_out (c(" (Loop ", WeightLoopCount,") DHW:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = ", ERSHomes, 
+                   " [count: ", ERSArchetypes,  "/", CEUDArchetypes,"w=*", adjWeight,":",round(preweight), " -> ",round(postweight), "]\n"))
+      }
+      debug_out (c(" (Loop ", WeightLoopCount,") DHW:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = ", ERSHomes, 
+                   " [count: ", ERSArchetypes,  "/", CEUDArchetypes,"w=*", adjWeight,":",round(preweight), " -> ",round(postweight), "]\n"))
+ 
+    }else {
+      adjWeight = 0 
+      
+    
+      debug_out (c(" (Loop ", WeightLoopCount,") DHW:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = NONE FOUND! ]", ERSHomes, 
+                     " [count: --- /", CEUDArchetypes,"w = nil ]\n"))
+    }  
+  } 
+  
+  
+  # Second most important thing: Vintage 
+  for ( KeyVal in unique(CEUDProvFormVintageYr$Key) ) {
+  
+    CEUDHomes = CEUDProvFormVintageYr$NumHomes[  CEUDProvFormVintageYr$Key == KeyVal ]
+    CEUDArchetypes = NumOfArchPerProvFormVintage[KeyVal]
+    
+    
+    
+    
+    ERSHomes      <- sum( myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormVintage == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude] )  
+    
+    ERSArchetypes <- sum( myERSdata$CEUDCountCol[ myERSdata$CEUDTopProvFormVintage == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] ) 
+          
+    
+          
+    if ( LastLoop ) {
+      # Don't recompute weights, just evaluate over/under representation 
+      
+      if ( ERSHomes > CEUDHomes ) { NetOver = NetOver +  ERSHomes - CEUDHomes }
+      if ( ERSHomes < CEUDHomes  ) { NetUnder = NetUnder + CEUDHomes - ERSHomes }
+   
+   
+    }else if ( ERSHomes > 0 )   {         
+      adjWeight = ( CEUDHomes / ERSHomes - 1 ) * relaxFactor + 1 
+      
+      if (adjWeight > 1 + adjMax ) { adjWeight = 1 + adjMax }
+      if (adjWeight < 1 - adjMax ) { adjWeight = 1 - adjMax }      
+      
+      
+      preweight <- ERSHomes / ERSArchetypes
+      
+      
+      myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormVintage == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] <-
+         myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormVintage == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight    
+        
+        
+      postweight <- sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormVintage == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]) / ERSArchetypes
+      
+      if ( KeyVal == "ON|SD|1984-1995"  ) {
+      stream_out (c(" (Loop ", WeightLoopCount,") Vin:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = ", ERSHomes, 
+                   " [count: ", ERSArchetypes,  "/", CEUDArchetypes,"w=*", adjWeight,":",round(preweight), " -> ",round(postweight), "]\n"))
+      }
+      debug_out (c(" (Loop ", WeightLoopCount,") Vin:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = ", ERSHomes, 
+                   " [count: ", ERSArchetypes,  "/", CEUDArchetypes,"w=*", adjWeight," ]\n"))
+    
+        
+    }else {
+      adjWeight = 0 
+      
+    
+      debug_out (c(" (Loop ", WeightLoopCount,") DHW:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = NONE FOUND! ]", ERSHomes, 
+                     " [count: --- /", CEUDArchetypes,"w = nil ]\n"))
+    }  
+  } 
+  
+   # Most important thing gets final say: Equipment (&therefore, fuel type)
+  for ( KeyVal in unique(CEUDProvFormSHEquipYr$Key) ) {
+  
+    CEUDHomes = CEUDProvFormSHEquipYr$NumHomes[  CEUDProvFormSHEquipYr$Key == KeyVal ]
+    CEUDArchetypes = NumOfArchPerProvFormSH[KeyVal]
+       
+    ERSHomes <- sum( myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormSH == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude] )  
+    
+    ERSArchetypes <- sum( myERSdata$CEUDCountCol[ myERSdata$CEUDTopProvFormSH == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] ) 
+          
+    
+          
+    if ( LastLoop ) {
+      # Don't recompute weights, just evaluate over/under representation 
+      
+      if ( ERSHomes > CEUDHomes ) { NetOver = NetOver +  ERSHomes - CEUDHomes }
+      if ( ERSHomes < CEUDHomes  ) { NetUnder = NetUnder + CEUDHomes - ERSHomes }
+   
+   
+    }else if ( ERSHomes > 0 )   {         
+      adjWeight = ( CEUDHomes / ERSHomes - 1 ) * relaxFactor + 1 
+      
+      if (adjWeight > 1 + adjMax ) { adjWeight = 1 + adjMax }
+      if (adjWeight < 1 - adjMax ) { adjWeight = 1 - adjMax }      
+      
+      
+      preweight <- ERSHomes / ERSArchetypes
+      
+      
+      myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormSH == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] <-
+         myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormSH == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ] * adjWeight    
+        
+        
+      postweight <- sum(myERSdata$CEUDFinalWeights[ myERSdata$CEUDTopProvFormSH == KeyVal & ! myERSdata$CEUDerror & myERSdata$ArchInclude ]) / ERSArchetypes
+      
+      if ( KeyVal == "SK|SD|Gas-High"  ) {
+      stream_out (c(" (Loop ", WeightLoopCount,") SH:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = ", ERSHomes, 
+                   " [count: ", ERSArchetypes,  "/", CEUDArchetypes,"w=*", adjWeight,":",round(preweight), " -> ",round(postweight), "]\n"))
+      }
+      debug_out (c(" (Loop ", WeightLoopCount,") SH:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = ", ERSHomes, 
+                   " [count: ", ERSArchetypes,  "/", CEUDArchetypes,"w=*", adjWeight," ]\n"))
+    
+        
+    }else {
+      adjWeight = 0 
+      
+    
+      debug_out (c(" (Loop ", WeightLoopCount,") DHW:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = NONE FOUND! ]", ERSHomes, 
+                     " [count: --- /", CEUDArchetypes,"w = nil ]\n"))
+    }  
+  } 
+  
+  
+  
+  WeightLoopCount <- WeightLoopCount + 1
+   
+  if ( WeightLoopCount > Loops ){
+  
+    WeightsDone = TRUE 
+    
+  }else if (WeightLoopCount > Loops -1  ) {
+  
+    LastLoop = TRUE
+    
+  }
+  
+   
+
+}
+
+
+stream_out ( c("Weights set: Net Over: ", NetOver/1E06, "m , Net under: ", NetUnder/1E06, "m\n"))
+
+#for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror && myERSdata$ArchInclude ] )){     
+#
+#  ProvFormVintage  <- myERSdata$CEUDTopProvFormVintage[myERSdata$HOUSE_ID.D == ID ]
+#  ProvFormSHEquip  <- myERSdata$CEUDTopProvFormSH[myERSdata$HOUSE_ID.D == ID ]
+#  ProvFormDHWEquip <- myERSdata$CEUDTopProvFormDHW[myERSdata$HOUSE_ID.D == ID ]
+#  ProvAC           <- myERSdata$CEUDTopProvAC[myERSdata$HOUSE_ID.D == ID ]
+#} 
+          
 
 mySubData <- myERSdata[myERSdata$ArchInclude,]
 
@@ -1059,7 +1301,7 @@ arch_run_total <- 0
 for (ArchProvince in unique(CEUDProvFormYr$Province)){
   
   
-  debug_out(c(" Found for Prov:", ArchProvince, " #: ", nrow(mySubData[mySubData$CEUDProvince==ArchProvince,])," / ", NumOfArchPerProv[ArchProvince], " \n"))
+  stream_out(c(" Found for Prov:", ArchProvince, " #: ", nrow(mySubData[mySubData$CEUDProvince==ArchProvince,])," / ", NumOfArchPerProv[ArchProvince], " \n"))
   
   arch_run_total <- arch_run_total + nrow(mySubData[mySubData$CEUDProvince==ArchProvince,])
     
@@ -1076,10 +1318,9 @@ write.csv(myERSdata, file = "myERSdata_out.txt")
 stream_out (" done.\n")
 
 
-
-
-
-q()
+write(c("Results:",relaxFactor, adjMax, gnERSrows, arch_run_total, NetOver/1.0E06, NetUnder/1.0E06 ), file = "res-config.txt",
+      ncolumns = 7,
+      append = TRUE, sep = " ")
 
 
 
