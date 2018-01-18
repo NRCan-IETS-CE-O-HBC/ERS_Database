@@ -33,6 +33,9 @@ debug_vector <- function(myVector=c()){
 }
 
 
+
+
+
 # Header 
 sayHello <- function(){ 
   string_time <- format(Sys.time(), "%a %b %d %X %Y")
@@ -46,6 +49,13 @@ sayHello <- function(){
 
 # should be a cmd-line arguement
 debug = 1
+
+GroupEquipmentByFuelType <- TRUE 
+IgnoreAC                 <- TRUE 
+LowRiseOnly              <- TRUE
+
+if ( LowRiseOnly ) {IgnoreAC <-TRUE}
+
 
 # Location of the CEUD data source. Also could be a cmd line arguement
 #gPathToCEUD = "C:\\Users\\jpurdy\\Google Drive\\NRCan-Optimization-Results\\EIP-Technology-Forecasting\\CEUD-Data\\CEUD-translator-txt.csv"
@@ -118,9 +128,27 @@ if ( GroupEquipmentByFuelType ){
 
 }
 
+
+
+
 CEUD <- subset (CEUDraw, select = c(Province, Form, Stories, Equipment, Vintage, Year, Metric, Number_static))
+
+if ( LowRiseOnly ) {
+
+  CEUD$NumHomes[ CEUD$Form == "AP" ] <- 0 
+  
+} 
+
+
 CEUDraw <- c()
 CEUD$NumHomes = CEUD$Number_static * 1000
+
+if ( LowRiseOnly ) {
+
+  CEUD$NumHomes[ CEUD$Form == "AP" ] <- 0 
+  
+} 
+
 
 
 if(debug){
@@ -992,7 +1020,7 @@ for (ID in unique( myERSdata$HOUSE_ID.D[ ! myERSdata$CEUDerror ] )){
   if ( CountProvFormVintage[ProvFormVintage]  < NumOfArchPerProvFormVintage[ProvFormVintage] &&  
        CountProvFormSH[ProvFormSHEquip]       < NumOfArchPerProvFormSH[ProvFormSHEquip]  && 
        CountProvFormDHW[ProvFormDHWEquip]     < NumOfArchPerProvFormDHW[ProvFormDHWEquip] && 
-       CountProvAC[ProvAC]                    < NumOfArchPerProvAC[ProvAC]                 ){
+       ( CountProvAC[ProvAC]                  < NumOfArchPerProvAC[ProvAC] || IgnoreAC )       ){
        
        
      # There is room: Mark this record for inclusion 
@@ -1060,7 +1088,8 @@ while( ! WeightsDone ) {
   
   myERSdata$CEUDInitialWeights<- myERSdata$CEUDFinalWeights
   
-  # Start with least important: AC 
+  # Start with least important: AC
+  if ( ! IgnoreAC ) {  
   for ( KeyVal in unique(CEUDProvAirConYr$Key) ) {
   
     CEUDHomes = sum(CEUDProvAirConYr$NumHomes[  CEUDProvAirConYr$Key == KeyVal ])
@@ -1099,6 +1128,7 @@ while( ! WeightsDone ) {
       debug_out (c(" (Loop ", WeightLoopCount,") AC:", KeyVal, " : CEUD = ", CEUDHomes, " , ERS = NONE FOUND! ]", ERSHomes, 
                      " [count: --- / ", CEUDArchetypes," w = nil ]\n"))
     }  
+  }
   }
   
   #stream_out (c(" (Loop ", WeightLoopCount,") ON|AC-central: CEUD = ", sum(CEUDProvAirConYr$NumHomes[  CEUDProvAirConYr$Key == "ON|AC-Central" ]),
