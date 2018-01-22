@@ -1329,6 +1329,28 @@ stream_out(c("     . ","total number of Canadian homes.  \n"))
 
 
 
+# For Prov = ON, form = SD, 
+A<-NULL
+for ( KeyVint in unique ( CEUDProvFormVintageYr$Key[ CEUDProvFormVintageYr$Province == "ON" &  
+                                                     CEUDProvFormVintageYr$Form == "SD" ] ) ){
+
+  stream_out(c(".... ",KeyVint," + \n"))
+  for ( KeySH in unique ( CEUDProvFormSHEquipYr$Key[ CEUDProvFormSHEquipYr$Province == "ON" &  
+                                                     CEUDProvFormSHEquipYr$Form == "SD" ] ) ){
+
+ 													 
+													 
+  stream_out(c(".... ",KeyVint," & ", KeySH, " + \n"))
+  #ProvFormVintage  <- myERSdata$CEUDTopProvFormVintage[myERSdata$HOUSE_ID.D == ID ]
+
+}
+  
+  
+  
+  #ProvFormVintage  <- myERSdata$CEUDTopProvFormVintage[myERSdata$HOUSE_ID.D == ID ]
+
+}
+
 q()
 
 
@@ -1340,6 +1362,9 @@ WeightLoopCount <- 0
 LastLoop <- FALSE 
 # Default all weights to zero. 
 myERSdata$CEUDInitialWeights <- 0 
+
+
+
 
 
 
