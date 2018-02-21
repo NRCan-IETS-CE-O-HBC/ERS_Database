@@ -1334,13 +1334,13 @@ A<-NULL
 for ( KeyVint in unique ( CEUDProvFormVintageYr$Key[ CEUDProvFormVintageYr$Province == "ON" &  
                                                      CEUDProvFormVintageYr$Form == "SD" ] ) ){
 
-  stream_out(c(".... ",KeyVint," + \n"))
+  #stream_out(c(".... ",KeyVint," + \n"))
   for ( KeySH in unique ( CEUDProvFormSHEquipYr$Key[ CEUDProvFormSHEquipYr$Province == "ON" &  
                                                      CEUDProvFormSHEquipYr$Form == "SD" ] ) ){
 
  													 
 													 
-  stream_out(c(".... ",KeyVint," & ", KeySH, " + \n"))
+  #stream_out(c(".... ",KeyVint," & ", KeySH, " + \n"))
   #ProvFormVintage  <- myERSdata$CEUDTopProvFormVintage[myERSdata$HOUSE_ID.D == ID ]
 
 }
@@ -1351,7 +1351,7 @@ for ( KeyVint in unique ( CEUDProvFormVintageYr$Key[ CEUDProvFormVintageYr$Provi
 
 }
 
-q()
+
 
 
 myERSdata$CEUDWeight <-NULL     
