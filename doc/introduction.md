@@ -91,8 +91,9 @@ For each sample appearing in the sample distribution tables, NRCan will develop 
 <a name="methods"></a>
 Methods
 -------------------------
-To be developed.
+To be developed. Prototype methods implemented as R-Script [ERS-DB-Analysis.r][4]
 
 [1]: http://www.nrcan.gc.ca/energy/efficiency/17097
 [2]: http://www.nrcan.gc.ca/energy/efficiency/housing/home-improvements/17725
 [3]: https://github.com/NRCan-IETS-CE-O-HBC/HTAP
+[4]: https://github.com/NRCan-IETS-CE-O-HBC/ERS_Database/blob/master/ERS-DB-Analysis.r
