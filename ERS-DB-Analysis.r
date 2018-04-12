@@ -75,12 +75,12 @@ gPathToERS   = "D_E_combined_2016-10-18-forR.csv"
 # General parameters
 
 # Number of archetypes to be defined: 
-gTotalArchetypes = 100
+gTotalArchetypes = 10000
 
 # year for model
 gStockYear = 2013
 
-gnERSrows = 10000
+gnERSrows = 100000
 
 #==============
 # Start of script. 
@@ -1113,7 +1113,24 @@ CEUDProvFormVintageYr$Key = paste(CEUDProvFormVintageYr$Province,CEUDProvFormVin
 stream_out("\n")
 stream_out(c("     . ","Computing archetype distribution by Province / Form / Vintage \n"))
  
+
  
+#--for each Province in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
+for (KeyVal in unique(CEUDProvFormVintageYr$Province)){
+  NumbInCanada <- sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Province == KeyVal])
+  NumOfArch   <- NumbInCanada / CEUDTotalHomes * gTotalArchetypes
+  if ( NumOfArch < 1 && NumOfArch > 0 ) {
+    NumOfArch = 1
+  }  
+  NumOfArchPerProv[KeyVal] <- round(NumOfArch)
+   
+  debug_out(c(" Prov:", KeyVal, " #: ", NumOfArchPerProv[KeyVal]," of ", sum(CEUDProvFormVintageYr$NumHomes),"\n"))
+  
+  
+     
+}  
+ 
+
 #--for each Province|Form|Vintage in the CEUD Database, calculate the size of each archetype bucket; NumOfArch
 for (KeyVal in unique(CEUDProvFormVintageYr$Key)){
   NumbInCanada <- sum(CEUDProvFormVintageYr$NumHomes[CEUDProvFormVintageYr$Key == KeyVal])
@@ -1679,7 +1696,7 @@ arch_run_total <- 0
 for (ArchProvince in unique(CEUDProvFormYr$Province)){
   
   
-  stream_out(c(" Found for Prov:", ArchProvince, " #: ", nrow(mySubData[mySubData$CEUDProvince==ArchProvince,])," / ", NumOfArchPerProv[ArchProvince], " \n"))
+  stream_out(c(" Found for Prov: ", ArchProvince, " #: ", nrow(mySubData[mySubData$CEUDProvince==ArchProvince,])," / ", NumOfArchPerProv[ArchProvince], " \n"))
   
   arch_run_total <- arch_run_total + nrow(mySubData[mySubData$CEUDProvince==ArchProvince,])
     
