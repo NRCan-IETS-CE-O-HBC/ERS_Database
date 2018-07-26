@@ -125,6 +125,26 @@ def process_xml_file(h2kelements)
     general.elements["Options"].elements["Main"].elements["Vermiculite"].attributes["code"] = "1"
     general.elements["Options"].elements["Main"].elements["Vermiculite"].elements["English"].text = "Unknown"
     general.elements["Options"].elements["Main"].elements["Vermiculite"].elements["French"].text = "Inconnu"
+	 
+	 # Delete Household operating conditions (HOC) input data 
+	 locationText = "HouseFile/Program/Options"
+	 if h2kelements[locationText].elements["Main"].attributes["applyHouseholdOperatingConditions"] == "true"
+			h2kelements[locationText].delete_element("HouseholdOperatingConditions")
+	 end
+	 
+	 # Delete ERS input data (ROC, Water conservation, Atypical loads, Reference House)
+	 if h2kelements[locationText].elements["Main"].attributes["applyReducedOperatingConditions"] == "true"
+			h2kelements[locationText].delete_element("ReducedOperatingConditions")
+	 end
+	 if h2kelements[locationText].elements["Main"].attributes["waterConservation"] == "true"
+			h2kelements[locationText].delete_element("WaterConservation")
+	 end
+	 if h2kelements[locationText].elements["Main"].attributes["atypicalElectricalLoads"] == "true"
+			h2kelements[locationText].delete_element("AtypicalElectricalLoads")
+	 end
+	 if h2kelements[locationText].elements["Main"].attributes["referenceHouse"] == "true"
+			h2kelements[locationText].delete_element("ReferenceHouse")
+	 end
 
     # EnerGuidle rating system - Options (Disable All)
     general.elements["Options"].elements["Main"].attributes["applyHouseholdOperatingConditions"] = "false"

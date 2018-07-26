@@ -8,6 +8,7 @@ Contents
 1) [Scope](#scope) 
 1) [Housing Archetype Classification](#classification) 
 1) [Archetype database format](#databaseformat) 
+1) [Methodology] (#methods)
 
 <a name="intro"></a>
 Introduction 
@@ -48,6 +49,7 @@ The scope is also limited to data currently collected as part of Energuide for h
 Housing Archetype Classification 
 --------------------------------
 The archetypes will be classified according to the following topology:
+
 __New houses:__
 + Housing market (`AT`,`QC`,`GTA`,`ON`,`PR`,`BC-LM`,`BC-int`,`TR`)
 + House type (`SD`,`Row-end unit`,`Row-mid unit`,`Semi-detached`,`MURB`)
@@ -102,6 +104,7 @@ The summary table will be published as a single comma-separated-value file, with
 <a name="Format3"></a>
 ### Format #3: HOT2000 files 
 For each sample appearing in the sample distribution tables, NRCan will develop a representative [HOT2000][4] file (`.h2k`) for use in HOT2000 and [HTAP][4]. The mechanism for publishing these files. 
+An automated script parse HOT2000 files to remove all private information, and rename files.
 
 
 <a name="methods"></a>
@@ -109,8 +112,22 @@ Methods
 -------------------------
 To be developed. Prototype methods implemented as R-Script [ERS-DB-Analysis.r][5]
 
+__Selection of new archetypes from the Energuide database:__
+HTAP is designed to parse and modify xml files. Therefore, HOT2000v11[3] files can only be used in HTAP (previous versions of HOT2000[3] were using binary format). Energuide database consist houses from the EnergyStar[6] and R-2000[7] programs. HOT2000v10 is the delivery software for the R-2000 program. Therefore, only EnergyStar house files are available for archetype selection right now.
+Available house files are examined to identify outliers and select an appropriate set which represents majority of new houses in each region. A ruby script randomly shuffles the remaining house files and select archetypes. A series of rules are applied to select representative houses in each market.
+Process of archetypes selection is automated using ruby scripts. Therefore, archetypes can be updated in future using the same platform.
+
+__Define weighting factors for each archetype:__
+Participation in EnergyStar and R-2000 programs are not mandatory. Therefore, distribution of house types in the Energuide database is not representative of housing market in each region. It is important to define appropriate weighting factors for each archetype. These weighting factors are developed based on the statistical data in the CMHC[1] database. 
+A user can extrapolate the results of energy consumption, GHG emissions, investment costs, and operating costs using weighting factors.
+
+__Limitations:__
++ Limitations for selection of archetypes.
+
 [1]: https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410012601
 [2]: http://www.nrcan.gc.ca/energy/efficiency/17097
 [3]: http://www.nrcan.gc.ca/energy/efficiency/housing/home-improvements/17725
 [4]: https://github.com/NRCan-IETS-CE-O-HBC/HTAP
 [5]: https://github.com/NRCan-IETS-CE-O-HBC/ERS_Database/blob/master/ERS-DB-Analysis.r
+[6]: https://www.nrcan.gc.ca/energy/efficiency/housing/new-homes/5057
+[7]: http://www.nrcan.gc.ca/energy/efficiency/homes/20575
