@@ -8,7 +8,7 @@ Contents
 1) [Scope](#scope) 
 1) [Housing Archetype Classification](#classification) 
 1) [Archetype database format](#databaseformat) 
-1) [Methodology] (#methods)
+1) [Methodology](#methods)
 
 <a name="intro"></a>
 Introduction 
