@@ -25,7 +25,7 @@ for hse_name in hse_list:
 	app.HOT2000.menu_select("File->Open")
 
 #hardcoding input hse folder path for now.
-	app.Open.Edit.type_keys("C:\\h2k_upgrader\\files_to_convert\\{}.HSE".format(hse_name))
+	app.Open.Edit.type_keys("C:\\ERS_Database\\hse-to-h2k-conversion\\files_to_convert\\{}.HSE".format(hse_name))
 	app.Open.Open.click()
 
 # spams enter to get by errors and messages. Hopefully 8 is enough?
