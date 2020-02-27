@@ -33,31 +33,36 @@ for hse_name in hse_list:
 
 # Sleep while H2k does its thing.
 	app.top_window().maximize()
-	time.sleep(1.0)
+	time.sleep(0.2)
 # Hot 2000 dialog name has changed.
 	new_name = "HOT2000 - [{} - General]".format(hse_name)
 	for y_coordinate in [130, 150, 170, 190, 210, 230, 250, 270]:
 		pywinauto.mouse.click(button='left', coords=(50, y_coordinate))
-		time.sleep(1.0)
+		time.sleep(0.2)
 		pywinauto.mouse.click(button='left', coords=(300, 130))
 		send_keys('{ENTER}')
-		time.sleep(1.0)
+		time.sleep(0.1)
 #Switch to summary view
 	pywinauto.mouse.click(button='left', coords=(50, 100))
-	time.sleep(1.0)
+	time.sleep(0.02)
 	
-	for y_coordinate in [100, 115, 130, 150, 170, 205, 220, 235, 260, 280]:
+	for y_coordinate in [115, 130, 150, 220, 260, 280]:
+		pywinauto.mouse.click(button='left', coords=(50, y_coordinate))
+		send_keys('{ENTER 5}')
+		time.sleep(0.05)
+	# Multiple windows and doors may have to be updated
+	for y_coordinate in [170, 205]:
 		pywinauto.mouse.click(button='left', coords=(50, y_coordinate))
 		send_keys('{ENTER 20}')
-		time.sleep(1.0)
+		time.sleep(0.05)
 	
 	#hardcoding ouput h2k folder path for now.
 	app[new_name].menu_select("File->Save As")
 	app.SaveAs.Edit.type_keys("C:\\ERS_Database\\hse-to-h2k-conversion\\converted_files\\{}.h2k".format(hse_name))
 	app.SaveAs.Save.click()
-	time.sleep(1.0)
+	time.sleep(0.2)
 	send_keys('{ENTER 30}')
-	time.sleep(1.0)
+	time.sleep(0.2)
 	app[new_name].menu_select("File->Exit")
 
 
