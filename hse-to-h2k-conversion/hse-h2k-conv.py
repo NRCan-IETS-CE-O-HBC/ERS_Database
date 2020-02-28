@@ -57,13 +57,20 @@ for hse_name in hse_list:
 		time.sleep(0.05)
 	
 	#hardcoding ouput h2k folder path for now.
-	app[new_name].menu_select("File->Save As")
-	app.SaveAs.Edit.type_keys("C:\\ERS_Database\\hse-to-h2k-conversion\\converted_files\\{}.h2k".format(hse_name))
-	app.SaveAs.Save.click()
-	time.sleep(0.2)
-	send_keys('{ENTER 30}')
-	time.sleep(0.2)
-	app[new_name].menu_select("File->Exit")
-
+	try:
+		app[new_name].menu_select("File->Save As")
+		app.SaveAs.Edit.type_keys("C:\\ERS_Database\\hse-to-h2k-conversion\\converted_files\\{}.h2k".format(hse_name))
+		app.SaveAs.Save.click()
+		time.sleep(0.2)
+		send_keys('{ENTER 30}')
+		time.sleep(0.2)
+		try:
+			app[new_name].menu_select("File->Exit")
+			os.remove("C:\\ERS_Database\\hse-to-h2k-conversion\\files_to_convert\\{}.HSE".format(hse_name))
+		except:
+			continue
+	except:
+		continue
+	
 
 
